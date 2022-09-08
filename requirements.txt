@@ -1,0 +1,6 @@
+aws-lambda-powertools
+boto3
+fastapi
+mangum
+pydantic
+requests
