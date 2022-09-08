@@ -1,0 +1,55 @@
+Resources:
+  Table:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ${self:custom.tasks_table_name}
+      AttributeDefinitions:
+        - AttributeName: ${self:custom.tasks_attribute_name_id}
+          AttributeType: S
+      KeySchema:
+        - AttributeName: ${self:custom.tasks_attribute_name_id}
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: NEW_IMAGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+  Topic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: ${self:custom.tasks_topic_name}
+  TaskHandler1DLQ:
+    Type: AWS::SQS::Queue
+  TaskHandler1Queue:
+    Type: AWS::SQS::Queue
+    Properties:
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt TaskHandler1DLQ.Arn
+        maxReceiveCount: 1
+  TaskHandler1QueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref TaskHandler1Queue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: sqs:SendMessage
+            Resource: !GetAtt TaskHandler1Queue.Arn
+            Principal:
+              Service: "sns.amazonaws.com"
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Ref Topic
+  TaskHandler1Subscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: sqs
+      TopicArn: !Ref Topic
+      Endpoint: !GetAtt TaskHandler1Queue.Arn
+      RawMessageDelivery: True
+      FilterPolicy:
+        TaskType:
+          - "TASK1"

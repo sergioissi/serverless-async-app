@@ -1,0 +1,5 @@
+{
+  "devDependencies": {
+    "serverless-newrelic-lambda-layers": "^3.3.5"
+  }
+}

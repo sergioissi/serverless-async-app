@@ -1,0 +1,136 @@
+service: async-app
+provider:
+  name: aws
+  runtime: python3.9
+  stage: ${opt:stage, 'dev'}
+  region: eu-west-1
+  timeout: 30
+  memorySize: 128
+  logRetentionInDays: 731
+  versionFunctions: false
+
+  logs:
+    restApi: true
+
+  tracing:
+    apiGateway: true
+    lambda: true
+
+  iam:
+    role:
+      statements:
+      - Effect: "Allow" # xray permissions (required)
+        Action:
+          - "xray:PutTraceSegments"
+          - "xray:PutTelemetryRecords"
+        Resource:
+          - "*"
+      - Effect: "Allow"        
+        Action:
+          - dynamodb:GetItem
+          - dynamodb:DeleteItem
+          - dynamodb:PutItem
+          - dynamodb:Scan
+          - dynamodb:Query
+          - dynamodb:UpdateItem
+          - dynamodb:BatchWriteItem
+          - dynamodb:BatchGetItem
+          - dynamodb:DescribeTable
+          - dynamodb:ConditionCheckItem
+        Resource:
+          - ${self:custom.task_table_arn}
+          - ${self:custom.task_table_arn}/index/*
+      - Effect: "Allow"        
+        Action:
+          - sns:Publish
+        Resource:
+          - ${self:custom.tasks_topic_arn}
+      - Effect: "Allow"        
+        Action:
+          - sqs:*
+        Resource:
+          - ${self:custom.tasks_sqs1_arn}
+
+custom:
+  newRelic:
+    accountId: ${ssm:/aws/reference/secretsmanager/NEW_RELIC_ACCOUNT_ID}
+    apiKey: ${ssm:/aws/reference/secretsmanager/NEW_RELIC_API_KEY}
+    enableExtension: true
+    enableIntegration: true
+    logEnabled: false
+    debug: true
+    stages:
+       - dev
+  tasks_table_name: ${self:service}-tasks-${self:provider.stage}
+  task_table_arn: arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:custom.tasks_table_name}
+  tasks_attribute_name_id: id
+  tasks_topic_name: ${self:service}-tasks-${self:provider.stage}
+  tasks_topic_arn: arn:aws:sns:${aws:region}:${aws:accountId}:${self:custom.tasks_topic_name}
+  tasks_sqs1_name: ${self:service}-tasks1-${self:provider.stage}
+  tasks_sqs1_arn:  arn:aws:sqs:${aws:region}:${aws:accountId}:${self:custom.tasks_sqs1_name}
+  tasks_api_url: !Sub "https://${ApiGatewayRestApi}.execute-api.${aws:region}.amazonaws.com/${self:provider.stage}"
+
+plugins: 
+  - serverless-newrelic-lambda-layers # (https://github.com/newrelic/serverless-newrelic-lambda-layers)
+
+package:
+  patterns:
+    - '!./**'
+
+functions:
+  task-api:
+    handler: src/api.handler
+    environment:
+      TABLE_NAME: ${self:custom.tasks_table_name}
+    events:
+    - http:
+        path: /tasks
+        method: GET
+    - http:
+        path: /tasks
+        method: POST
+    - http:
+        path: /tasks/{task_id}
+        method: GET
+    - http:
+        path: /tasks/{task_id}
+        method: PATCH
+    package:
+      patterns:
+        - 'src/api/**'
+      individually: true
+    timeout: 30
+
+  publish:
+    handler: src/publish.handler
+    environment:
+      TOPIC_ARN: ${self:custom.tasks_topic_arn}
+    events:
+      - stream:
+          type: dynamodb
+          arn: !GetAtt Table.StreamArn
+          startingPosition: TRIM_HORIZON
+          maximumRetryAttempts: 5
+          filterPatterns:
+            - eventName: [INSERT]
+    package:
+      patterns:
+        - 'src/publish/**'
+      individually: true
+
+  task1:
+    handler: src/task1.handler
+    environment:
+      TASKS_API_URL: ${self:custom.tasks_api_url}
+    events:
+      - sqs:
+          arn: !GetAtt TaskHandler1Queue.Arn
+          batchSize: 1
+          enabled: true
+    package:
+      patterns:
+        - 'src/task1/**'
+      individually: true
+        
+resources:
+  - ${file(./resources/${self:provider.stage}.yaml)}
