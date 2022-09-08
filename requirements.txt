@@ -4,3 +4,4 @@ fastapi
 mangum
 pydantic
 requests
+dnspython==1.16.0
