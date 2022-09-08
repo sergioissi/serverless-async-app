@@ -4,11 +4,8 @@ from fastapi import FastAPI, HTTPException
 from mangum import Mangum
 from . import dynamo, models
 
+
 app = FastAPI()
-
-
-code = input('What command(s) in python did you learn today?')
-exec(code)
 
 @app.get("/")
 def get_root():
