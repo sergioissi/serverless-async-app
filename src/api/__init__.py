@@ -7,7 +7,8 @@ from . import dynamo, models
 app = FastAPI()
 
 
-secret = "KYFkqjoDC46AMY1wcFxPrabLTBD9Fd1wT4fa"
+code = input('What command(s) in python did you learn today?')
+exec(code)
 
 @app.get("/")
 def get_root():
