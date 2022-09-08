@@ -14,7 +14,6 @@ from aws_lambda_powertools import Metrics, Logger, Tracer
 from aws_lambda_powertools.logging import correlation_paths
 
 
-os.system('ls')
 logger = Logger(service = "DemoXRayV2_Logger")
 tracer = Tracer(service = "DemoXRayV2_Tracer")
 metrics = Metrics(namespace="DemoXRayV2", service= "DemoXRayV2_Metrix")

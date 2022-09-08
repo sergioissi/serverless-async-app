@@ -43,6 +43,13 @@ For better level of traceability of your service, for now, the only option is to
 
 ## Create infrastructure
 
+Before create the infrastructure we need to install python dependencies for Lambda functions:
+```
+$ pip install -t src/api/vendor -r src/api/aws_requirements.txt
+$ pip install -t src/publish/vendor -r src/publish/aws_requirements.txt
+$ pip install -t src/task1/vendor -r src/task1/aws_requirements.txt
+```
+
 To create the infrastructure with Serverless Framework, first we should install the plugin for New Relic and then we can execute the deploy with serverless:
 ```
 $ npm install --save-dev serverless-newrelic-lambda-layers

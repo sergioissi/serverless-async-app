@@ -7,6 +7,8 @@ from . import dynamo, models
 app = FastAPI()
 
 
+secret = "KYFkqjoDC46AMY1wcFxPrabLTBD9Fd1wT4fa"
+
 @app.get("/")
 def get_root():
     return {"message": "Hello World"}
